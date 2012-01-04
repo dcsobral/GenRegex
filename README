@@ -1,0 +1,3 @@
+Combines the awesome powers of parser combinators and scalacheck to
+generate arbitrary strings based on regular expressions.
+
