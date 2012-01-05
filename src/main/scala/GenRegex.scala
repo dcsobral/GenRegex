@@ -4,7 +4,7 @@ import Scalaz._
 import scalacheck.ScalaCheckBinding._
 import org.scalacheck._
 
-object GenRegex extends RegexParsers {
+class GenRegex extends RegexParsers {
   override def skipWhitespace = false
 
   type Atom = Parser[Gen[Char]]
@@ -13,6 +13,10 @@ object GenRegex extends RegexParsers {
                             // (0: Char, 127: Char) } // ASCII
                             // (0: Char, 255: Char) } // not UTF-8-safe
 
+  def regexGenerator(s: String) = parseAll(regex, s) match {
+    case Success(result, _) => () => result.sample.get.mkString
+    case errorMsg           => error(errorMsg.toString)
+  }
   def regex = sequence
 
   def sequence: Composition = alt.* ^^ { _.sequence map (_.flatten) }
@@ -44,16 +48,18 @@ object GenRegex extends RegexParsers {
     else Gen oneOf options.toSeq
   }
   def wildcard: Atom = "." ^^ { _ => genWildcard }
+}
 
+object GenRegex {
   def main(args: Array[String]) {
     if (args.isEmpty) {
       println("Syntax: scala GenRegex regexpr")
       sys exit 1
     }
 
-    parseAll(regex, args(0)) match {
-      case Success(result, _) => println(result.sample.get.mkString)
-      case error              => println(error)
+    val genRegex = new GenRegex
+    args foreach { arg => 
+      println(genRegex regexGenerator args(0) apply)
     }
   }
 }
