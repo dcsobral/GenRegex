@@ -20,7 +20,7 @@ object RegexGen {
     3 -> wildcard,
     1 -> subexpr
   )
-  def nonmeta(implicit maxDepth: Int) = Gen.alphaStr map (s => if (s.isEmpty) "x" else s)
+  def nonmeta(implicit maxDepth: Int) = Gen.alphaStr map (s => if (s.isEmpty) "x" else s) suchThat (_.nonEmpty)
     //Gen resultOf { (s: String) =>
       //s filter (c => c.isValidChar && !c.isControl && !metacharacters(c))
     //}
