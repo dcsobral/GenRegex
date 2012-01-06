@@ -8,21 +8,23 @@ import org.scalacheck.Prop.forAll
 object RegexGen {
   val metacharacters = ".|?*+{}[]()".toSet
   
-  def regexp: Gen[String] = alt
-  def alt: Gen[String] = Gen listOf reps map (_ mkString "|")
-  def reps: Gen[String] = Gen oneOf (zeroOrOne, zeroOrMore, oneOrMore)
-  def zeroOrOne: Gen[String] = concat map (_ + "?")
-  def zeroOrMore: Gen[String] = concat map (_ + "*")
-  def oneOrMore: Gen[String] = concat map (_ + "+")
-  def concat: Gen[String] = Gen listOf atoms map (_.mkString)
-  def atoms: Gen[String] = Gen frequency (
+  def regexp: Gen[String] = alt(3)
+  def alt(implicit maxDepth: Int): Gen[String] = Gen listOf reps map (_ mkString "|")
+  def reps(implicit maxDepth: Int): Gen[String] = Gen oneOf (zeroOrOne, zeroOrMore, oneOrMore)
+  def zeroOrOne(implicit maxDepth: Int): Gen[String] = concat map (_ + "?")
+  def zeroOrMore(implicit maxDepth: Int): Gen[String] = concat map (_ + "*")
+  def oneOrMore(implicit maxDepth: Int): Gen[String] = concat map (_ + "+")
+  def concat(implicit maxDepth: Int): Gen[String] = Gen listOf atoms map (_.mkString)
+  def atoms(implicit maxDepth: Int): Gen[String] = Gen frequency (
     6 -> nonmeta,
     3 -> wildcard,
     1 -> subexpr
   )
-  def nonmeta: Gen[String] = Gen resultOf ((_: String) filterNot metacharacters)
-  def wildcard: Gen[String] = Gen value "."
-  def subexpr: Gen[String] = regexp map ("(" + _ + ")")
+  def nonmeta(implicit maxDepth: Int): Gen[String] = Gen resultOf ((_: String) filterNot metacharacters)
+  def wildcard(implicit maxDepth: Int): Gen[String] = Gen value "."
+  def subexpr(implicit maxDepth: Int): Gen[String] = nonmeta map ("(" + _ + ")")
+    //if (maxDepth > 0) alt(maxDepth - 1) map ("(" + _ + ")")
+    //else ""
 }
 
 class GenRegexSpecs extends Specification with ScalaCheck with DataTables {
