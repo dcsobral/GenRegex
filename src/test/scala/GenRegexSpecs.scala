@@ -3,28 +3,31 @@ import specification.gen._
 import matcher.DataTables
 import execute.Result
 import org.scalacheck.Gen
-import org.scalacheck.Prop.forAll
+import org.scalacheck.Prop.forAllNoShrink
 
 object RegexGen {
   val metacharacters = ".|?*+{}[]()".toSet
   
   def regexp: Gen[String] = alt(3)
-  def alt(implicit maxDepth: Int): Gen[String] = Gen listOf reps map (_ mkString "|")
+  def alt(implicit maxDepth: Int): Gen[String] = Gen listOf concat map (_ mkString "|")
+  def concat(implicit maxDepth: Int): Gen[String] = Gen listOf reps map (_.mkString)
   def reps(implicit maxDepth: Int): Gen[String] = Gen oneOf (zeroOrOne, zeroOrMore, oneOrMore)
-  def zeroOrOne(implicit maxDepth: Int): Gen[String] = concat map (_ + "?")
-  def zeroOrMore(implicit maxDepth: Int): Gen[String] = concat map (_ + "*")
-  def oneOrMore(implicit maxDepth: Int): Gen[String] = concat map (_ + "+")
-  def concat(implicit maxDepth: Int): Gen[String] = Gen listOf atoms map (_.mkString)
+  def zeroOrOne(implicit maxDepth: Int): Gen[String] = atoms map (_ + "?")
+  def zeroOrMore(implicit maxDepth: Int): Gen[String] = atoms map (_ + "*")
+  def oneOrMore(implicit maxDepth: Int): Gen[String] = atoms map (_ + "+")
   def atoms(implicit maxDepth: Int): Gen[String] = Gen frequency (
     6 -> nonmeta,
     3 -> wildcard,
     1 -> subexpr
   )
-  def nonmeta(implicit maxDepth: Int): Gen[String] = Gen resultOf ((_: String) filterNot metacharacters)
-  def wildcard(implicit maxDepth: Int): Gen[String] = Gen value "."
-  def subexpr(implicit maxDepth: Int): Gen[String] = nonmeta map ("(" + _ + ")")
-    //if (maxDepth > 0) alt(maxDepth - 1) map ("(" + _ + ")")
-    //else ""
+  def nonmeta(implicit maxDepth: Int) = Gen.alphaStr map (s => if (s.isEmpty) "x" else s)
+    //Gen resultOf { (s: String) =>
+      //s filter (c => c.isValidChar && !c.isControl && !metacharacters(c))
+    //}
+  def wildcard(implicit maxDepth: Int) = Gen value "."
+  def subexpr(implicit maxDepth: Int): Gen[String] =
+    if (maxDepth > 0) alt(maxDepth - 1) map ("(" + _ + ")")
+    else ""
 }
 
 class GenRegexSpecs extends Specification with ScalaCheck with DataTables {
@@ -38,14 +41,15 @@ class GenRegexSpecs extends Specification with ScalaCheck with DataTables {
     "Examples"                                       ! patterns ^
     end
 
-  def regexpMatchesGen = forAll(RegexGen.regexp) { regexp =>
-    generator(regexp) matches regexp
+  def regexpMatchesGen = forAllNoShrink(RegexGen.regexp) { regexp =>
+    val sample = generator(regexp)
+    (sample matches regexp) :| 
+    """Sample "%s" isn't matched by regexp /%s/""".format(sample, regexp)
   }
 
   def patterns =
     "Input"    || "Output"                   |
     ""         !! "<empty>"                  |
-    "."        !! "a, b, c, ..."             |
     "a"        !! "a"                        |
     "b"        !! "b"                        |
     "aa"       !! "aa"                       |
@@ -60,22 +64,19 @@ class GenRegexSpecs extends Specification with ScalaCheck with DataTables {
     "a(b|c)d"  !! "abd, acd"                 |> validate
 
   def validate = (input: String, output: String) => {
-    val outputs = output split """\s*,\s*""" filterNot ("..." ==) map {
+    val outputs = output split """\s*,\s*""" map {
       case "<empty>" => ""
       case other     => other
     }
-    def isComplete = !(output endsWith "...")
-
-    def checkCompleteness =
+    def noUnexpectedResult =
       if (outputs.length == 1) generator(input) === outputs(0)
       else generator(input) must beOneOf(outputs: _*)
 
-    def checkPresence =
+    def allExpectedResults =
       ((success: Result) /: outputs) { (result, expected) =>
         result and (generator(input) must beEqualTo(expected).eventually)
       }
 
-    if (isComplete) checkCompleteness and checkPresence
-    else checkPresence
+    noUnexpectedResult and allExpectedResults
   }
 }
