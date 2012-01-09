@@ -12,10 +12,10 @@ object RegexGen {
   def alt(implicit maxDepth: Int): Gen[String] = Gen listOf concat map (_ mkString "|")
   def concat(implicit maxDepth: Int): Gen[String] = Gen listOf reps map (_.mkString)
   def reps(implicit maxDepth: Int): Gen[String] = Gen oneOf (zeroOrOne, zeroOrMore, oneOrMore)
-  def zeroOrOne(implicit maxDepth: Int): Gen[String] = atoms map (_ + "?")
-  def zeroOrMore(implicit maxDepth: Int): Gen[String] = atoms map (_ + "*")
-  def oneOrMore(implicit maxDepth: Int): Gen[String] = atoms map (_ + "+")
-  def atoms(implicit maxDepth: Int): Gen[String] = Gen frequency (
+  def zeroOrOne(implicit maxDepth: Int): Gen[String] = atom map (_ + "?")
+  def zeroOrMore(implicit maxDepth: Int): Gen[String] = atom map (_ + "*")
+  def oneOrMore(implicit maxDepth: Int): Gen[String] = atom map (_ + "+")
+  def atom(implicit maxDepth: Int): Gen[String] = Gen frequency (
     6 -> nonmeta,
     3 -> wildcard,
     1 -> subexpr
