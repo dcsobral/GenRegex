@@ -8,9 +8,9 @@ import org.scalacheck.Prop.forAllNoShrink
 object RegexGen {
   val metacharacters = ".|?*+{}[]()".toSet
   
-  def regexp: Gen[String] = alt(3)
-  def alt(implicit maxDepth: Int): Gen[String] = Gen listOf concat map (_ mkString "|")
-  def concat(implicit maxDepth: Int): Gen[String] = Gen listOf reps map (_.mkString)
+  def regexp: Gen[String] = alt(1)
+  def alt(implicit maxDepth: Int): Gen[String] = Gen listOf1 concat map (_ mkString "|")
+  def concat(implicit maxDepth: Int): Gen[String] = Gen listOf1 reps map (_.mkString)
   def reps(implicit maxDepth: Int): Gen[String] = Gen oneOf (zeroOrOne, zeroOrMore, oneOrMore)
   def zeroOrOne(implicit maxDepth: Int): Gen[String] = atom map (_ + "?")
   def zeroOrMore(implicit maxDepth: Int): Gen[String] = atom map (_ + "*")
@@ -27,7 +27,7 @@ object RegexGen {
   def wildcard(implicit maxDepth: Int) = Gen value "."
   def subexpr(implicit maxDepth: Int): Gen[String] =
     if (maxDepth > 0) alt(maxDepth - 1) map ("(" + _ + ")")
-    else ""
+    else "x"
 }
 
 class GenRegexSpecs extends Specification with ScalaCheck with DataTables {
